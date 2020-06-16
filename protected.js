@@ -9,9 +9,9 @@
 (function(env) {
     
     /**
-     * @namespace DGWPTOOLSv1
+     * @namespace DGTOOLSv1
      */
-    env.DGWPTOOLSv1 = {
+    env.DGTOOLSv1 = {
         connect: connect
     };
     
