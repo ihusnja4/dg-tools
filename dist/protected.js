@@ -171,7 +171,7 @@
         return parseFloat(val.replace(/[^\.\d]+/g, ''));
     }
 
-    const CORE_VERSION = '0.0.1';
+    const CORE_VERSION = '1.0';
 
     /**
      * @param env
@@ -234,7 +234,7 @@
 
         function status() {
             console.log(`DGTOOLS v${CORE_VERSION} installed.`);
-            console.log(`Flavor: Public script v${VERSION}`);
+            console.log(`Flavor: Protected script v${VERSION}`);
             console.log(`Viewing: ${view}`);
         }
         
