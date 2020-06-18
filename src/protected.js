@@ -38,7 +38,7 @@ import {resolveCurrentView, VIEW} from "./view";
 
     function status() {
         console.log(`DGTOOLS v${CORE_VERSION} installed.`);
-        console.log(`Flavor: Public script v${VERSION}`);
+        console.log(`Flavor: Protected script v${VERSION}`);
         console.log(`Viewing: ${view}`);
     }
     
