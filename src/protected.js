@@ -1,17 +1,20 @@
-import processPlanetListStats from "./tools/planet-list-stats";
 import {CORE_VERSION} from "./config";
 import {resolveCurrentView, VIEW} from "./view";
+import {parseHeaderData} from "./parsers/header-data";
+import {parsePlanetList} from "./parsers/planet-list";
+import {renderPlanetListStats, getPlanetListStats} from "./tools/planet-list-stats";
 
 /**
- * @description gTools for DarkGalaxy ame @link <https://www.darkgalaxy.com/> tools
- * intended only for WolfPack members and allies.
+ * @description Tools for DarkGalaxy game @link <https://www.darkgalaxy.com/>
+ * These tools are intended only for WolfPack members and allies.
  * This script also includes all public tools, so its not advisable to use them both together.
  *
  * @author Ivan (aka Deda)
- * @version 1.0
+ * @version 1.0.0
  */
 (function(env) {
-    const VERSION = '1.0';
+    const VERSION = '1.0.0';
+    const headerData = parseHeaderData(env);
     const [view, params] = resolveCurrentView(env);
 
     /**
@@ -28,10 +31,18 @@ import {resolveCurrentView, VIEW} from "./view";
      * @param options
      */
     function connect(options = {}) {
+        // todo authorize by API key
+
         if (view === VIEW.PLANET_LIST) {
-            processPlanetListStats(env);
+            // TODO this would be inserted into a dedicated toolbar for DG tools
+            const planetList = parsePlanetList(env);
+            const planetStats = getPlanetListStats(planetList); // TODO per galaxy
+            const discordOutputEl = renderPlanetListStats(env, planetStats, headerData);
+            const outletEl = env.document.createElement('div');
+            outletEl.classList.add('planet-list-stats-outlet');
+            outletEl.append(discordOutputEl);
+            env.document.body.append(outletEl);
         }
-        status();
     }
     
     // endregion

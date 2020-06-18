@@ -2,184 +2,19 @@
     'use strict';
 
     /**
+     * Version of core tools (used both in public and protected scripts)
      *
-     *
-     * @param {window} env
+     * @type {string}
      */
-    function processPlanetListStats(env) {
-        const locations = Array.from(document.querySelectorAll('.locationWrapper')).map(processLocation);
-        const workers = sum(locations, 'workersIdle') + sum(locations, 'workersBusy');
-        const soldiers = sum(locations, 'soldiers');
-        const stats = {
-            planetsOwned: locations.length,
-            fleets: locations.reduce(
-                (r, l) => [...r, ...l.fleets.map(f => ({...f, coords: l.coords }))],
-                []
-            ),
-            workers,
-            avgWorkers: workers / locations.length,
-            soldiers,
-            avgSoldiers: soldiers / locations.length,
-            groundRemaining: sum(locations, 'groundRemaining'),
-            orbitRemaining: sum(locations, 'orbitRemaining'),
-            metalInStock: sum(locations, 'metalInStock'),
-            metalProduction: sum(locations, 'metalProduction'),
-            avgMetalAbundance: avg(locations, 'metalAbundance'),
-            mineralInStock: sum(locations, 'mineralInStock'),
-            mineralProduction: sum(locations, 'mineralProduction'),
-            avgMineralAbundance: avg(locations, 'mineralAbundance'),
-            energyInStock: sum(locations, 'energyInStock'),
-            energyProduction: sum(locations, 'energyProduction'),
-            avgEnergyAbundance: avg(locations, 'energyAbundance'),
-            producing: locations.reduce((r, l) => {
-                if (l.shipYard.item !== 'None') {
-                    r.push({...l.shipYard, coords: l.coords});
-                }
-                return r;
-            }, []),
-            training: locations.reduce((r, l) => {
-                if (l.barracks.item !== 'None') {
-                    r.push({...l.barracks, coords: l.coords});
-                }
-                return r;
-            }, []),
-            building: locations.reduce((r, l) => {
-                if (l.structure.item !== 'None') {
-                    r.push({...l.structure, coords: l.coords});
-                }
-                return r;
-            }, [])
-        };
-        console.log('Locations', locations, stats);
-        const discordOutputEl = env.document.createElement('textarea');
-        discordOutputEl.style.width = '400px';
-        discordOutputEl.style.height = '200px';
-        discordOutputEl.value = [
-            `:coords: Planets Owned: ${stats.planetsOwned}`,
-            `:worker: ${numberFormat(stats.workers)} (${numberFormat(stats.avgWorkers)} / planet)`,
-            `:soldier: ${numberFormat(stats.soldiers)} (${numberFormat(stats.avgSoldiers)} / planet)`,
-            `:metal~1: ${numberFormat(stats.metalInStock)} (+${numberFormat(stats.metalProduction)}) ${numberFormat(stats.avgMetalAbundance, 2)}%`,
-            `:mineral: ${numberFormat(stats.mineralInStock)} (+${numberFormat(stats.mineralProduction)}) ${numberFormat(stats.avgMineralAbundance, 2)}%`,
-            `:energy: ${numberFormat(stats.energyInStock)} (+${numberFormat(stats.energyProduction)}) ${numberFormat(stats.avgEnergyAbundance, 2)}%`,
-            `:army_barracks: Training:`,
-            ...stats.training.reduce((r, b) => {
-                const find = r.find(i => i.turns === b.turns && i.item === b.item);
-                if (find) {
-                    find.quantity += b.quantity;
-                    return r;
-                }
-                return [...r, { turns: b.turns, item: b.item, quantity: b.quantity }];
-            }, []).map(r => `+${numberFormat(r.quantity)}x ${r.item} in ${r.turns} turns`),
-            `:ship_yard: Producing:`,
-            ...stats.producing.reduce((r, b) => {
-                const find = r.find(i => i.turns === b.turns && i.item === b.item);
-                if (find) {
-                    find.quantity += b.quantity;
-                    return r;
-                }
-                return [...r, { turns: b.turns, item: b.item, quantity: b.quantity }];
-            }, []).map(r => `+${numberFormat(r.quantity)}x ${r.item} in ${r.turns} turns`),
-        ].join('\n');
-
-        const outletEl = env.document.createElement('div');
-        outletEl.classList.add('planet-list-stats-outlet');
-        outletEl.append(discordOutputEl);
-        env.document.body.append(outletEl);
-    }
-
-    function avg(items, aggregateBy) {
-        return sum(items, aggregateBy) / items.length;
-    }
-    function sum(items, aggregateBy) {
-        return items.reduce(aggregate(aggregateBy), 0);
-    }
-    function aggregate(by) {
-        return (aggregator, item) => aggregator + item[by];
-    }
-    function numberFormat(val, decimals = 0) {
-        return val.toLocaleString("en", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-    }
-
-    function processLocation(el) {
-        return {
-            el: el,
-            coords: extractText(el,'.coords'),
-            name: extractText(el,'.planetName'),
-            planetLink: extractHref(el,'.planetName a'),
-            newsLink: extractHref(el,'.planetHeadSection a[href^="/news"]'),
-            orbitRemaining: unFormatNumber(extractText(el,'.orbit')),
-            groundRemaining: unFormatNumber(extractText(el,'.ground')),
-            soldiers: unFormatNumber(extractText(el,'.soldier')),
-            workersIdle: unFormatNumber(extractText(el,'.population span')),
-            workersBusy: unFormatNumber(extractText(el,'.population .neutral')),
-            ...extractResource(el, 'metal'),
-            ...extractResource(el, 'mineral'),
-            ...extractResource(el, 'energy'),
-            structure: extractBuild(el, 'Building'),
-            shipYard: extractBuild(el, 'Ship Yard'),
-            barracks: extractBuild(el, 'Barracks'),
-            radarLink: extractRadarLink(el),
-            fleets: extractFleets(el)
-        };
-    }
-
-    function extractText(el, selector) {
-        const found = el.querySelector(selector);
-        return found ? found.innerText.trim() : '';
-    }
-    function extractHref(el, selector) {
-        const found = el.querySelector(selector);
-        return found ? found.getAttribute('href') : null;
-    }
-    function extractBuild(el, matcher) {
-        return Array.from(el.querySelectorAll('.resource'))
-            .filter(e => new RegExp(`^${matcher}$`).test(extractText(e,'a')))
-            .reduce((r, e) => {
-                const [, quantity = '1', item = 'None', turns = '0'] = e.innerText.match(/(?:[^\:]+)\:\s*([\d,]+x )?([^\(]+)\s(?:\((\d+) turns?\))?/) || [];
-                return {
-                    item: item.trim(),
-                    quantity: unFormatNumber(quantity),
-                    turns: unFormatNumber(turns),
-                    link: extractHref(e,'a')
-                };
-            }, { item: 'None', turns: 0, link: null, quantity: 0 });
-    }
-    function extractRadarLink(el) {
-        const [e] = Array.from(el.querySelectorAll('.resource'))
-            .filter(e => new RegExp(`^Communications$`, 'i').test(extractText(e,'a')));
-        return e ? extractHref(e, 'a') : null;
-    }
-    function extractResource(el, key) {
-        const [inStock, production, abundance] = extractText(el, `.${key}`).split(' ').map(unFormatNumber);
-        return {
-            [`${key}InStock`]: inStock,
-            [`${key}Production`]: production,
-            [`${key}Abundance`]: abundance,
-        }
-    }
-    function extractFleets(el) {
-        return Array.from(el.querySelectorAll('.fleet')).slice(1) // first one is "Fleets in orbit" text
-            .map(e => ({
-                name: e.innerText.trim(),
-                link: extractHref(e, 'a'),
-                friendly: e.classList.contains('friendly'),
-                hostile: el.classList.contains('hostile') // TODO not sure if its hostile or enemy
-            }));
-    }
-
-    function unFormatNumber(val) {
-        return parseFloat(val.replace(/[^\.\d]+/g, ''));
-    }
-
-    const CORE_VERSION = '1.0';
+    const CORE_VERSION = '1.0.0';
 
     /**
-     * @param env
+     * @param {window} env
      * @returns [VIEW, ViewParams]
      */
     function resolveCurrentView(env) {
         if (env.location.pathname.match(/\/planets\/?$/)) {
-            return [VIEW.PLANET, {}];
+            return [VIEW.PLANET_LIST, {}];
         }
         return [VIEW.UNMATCHED, {}];
     }
@@ -194,20 +29,329 @@
     };
 
     /**
-     * @typedef ViewParams
+     * @typedef {{}} ViewParams
      * @property *
      */
 
     /**
-     * @description gTools for DarkGalaxy ame @link <https://www.darkgalaxy.com/> tools
-     * intended only for WolfPack members and allies.
+     * Parses DOM nodes in header to collect Ruler name, alliance, turn...
+     *
+     * @param {window} env
+     * @return {HeaderData}
+     */
+    function parseHeaderData(env) {
+        const [alliance = null, name] = env.document.querySelector('#header .header').innerText.trim().match(/Welcome\s(\[[^\]]+\])?(.+)/).slice(1, 3);
+        const turn = parseInt(document.querySelector('#turnNumber').innerText.trim(), 10);
+
+        return {name, alliance, turn};
+    }
+
+    /**
+     * @typedef HeaderData
+     * @property {string} name
+     * @property {string|null} alliance
+     * @property {number} turn
+     */
+
+    function avg(items, aggregateBy) {
+        return sum(items, aggregateBy) / items.length;
+    }
+
+    function sum(items, aggregateBy) {
+        return items.reduce(aggregate(aggregateBy), 0);
+    }
+
+    function aggregate(by) {
+        return (aggregator, item) => aggregator + item[by];
+    }
+
+    function numberFormat(val, decimals = 0) {
+        return val.toLocaleString("en", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    }
+
+    function numberUnFormat(val) {
+        return parseFloat(val.replace(/[^\.\d]+/g, ''));
+    }
+
+    /**
+     * Parses planet list and collects information about resources: production, abundance, stock, workers, soldiers, structures, ships...
+     *
+     * @param {window} env
+     * @return {PlanetInfo[]}
+     */
+    function parsePlanetList(env) {
+        return Array.from(document.querySelectorAll('.locationWrapper')).map(processLocation);
+    }
+
+    /**
+     * @param {element} el
+     * @return {PlanetInfo}
+     */
+    function processLocation(el) {
+        return {
+            el: el,
+            coords: extractText(el,'.coords'),
+            name: extractText(el,'.planetName'),
+            planetLink: extractHref(el,'.planetName a'),
+            newsLink: extractHref(el,'.planetHeadSection a[href^="/news"]'),
+            orbitRemaining: numberUnFormat(extractText(el,'.orbit')),
+            groundRemaining: numberUnFormat(extractText(el,'.ground')),
+            soldiers: numberUnFormat(extractText(el,'.soldier')),
+            workersIdle: numberUnFormat(extractText(el,'.population span')),
+            workersBusy: numberUnFormat(extractText(el,'.population .neutral')),
+            ...extractResource(el, 'metal'),
+            ...extractResource(el, 'mineral'),
+            ...extractResource(el, 'energy'),
+            structure: extractBuild(el, 'Building'),
+            shipYard: extractBuild(el, 'Ship Yard'),
+            barracks: extractBuild(el, 'Barracks'),
+            radarLink: extractRadarLink(el),
+            fleets: extractFleets(el)
+        };
+    }
+
+    // TODO move to utils
+    function extractText(el, selector) {
+        const found = el.querySelector(selector);
+        return found ? found.innerText.trim() : '';
+    }
+
+    // TODO move to utils
+    function extractHref(el, selector) {
+        const found = el.querySelector(selector);
+        return found ? found.getAttribute('href') : null;
+    }
+
+    function extractBuild(el, matcher) {
+        return Array.from(el.querySelectorAll('.resource'))
+            .filter(e => new RegExp(`^${matcher}$`).test(extractText(e,'a')))
+            .reduce((r, e) => {
+                const [, quantity = '1', item = 'None', turns = '0'] = e.innerText.match(/(?:[^\:]+)\:\s*([\d,]+x )?([^\(]+)\s(?:\((\d+) turns?\))?/) || [];
+                return {
+                    item: item.trim(),
+                    quantity: numberUnFormat(quantity),
+                    turns: numberUnFormat(turns),
+                    link: extractHref(e,'a')
+                };
+            }, { item: 'None', turns: 0, link: null, quantity: 0 });
+    }
+
+    function extractRadarLink(el) {
+        const [e] = Array.from(el.querySelectorAll('.resource'))
+            .filter(e => new RegExp(`^Communications$`, 'i').test(extractText(e,'a')));
+        return e ? extractHref(e, 'a') : null;
+    }
+
+    function extractResource(el, key) {
+        const [inStock, production, abundance] = extractText(el, `.${key}`).split(' ').map(numberUnFormat);
+        return {
+            [`${key}InStock`]: inStock,
+            [`${key}Production`]: production,
+            [`${key}Abundance`]: abundance,
+        }
+    }
+
+    function extractFleets(el) {
+        return Array.from(el.querySelectorAll('.fleet')).slice(1) // first one is "Fleets in orbit" text
+            .map(e => ({
+                name: e.innerText.trim(),
+                link: extractHref(e, 'a'),
+                friendly: e.classList.contains('friendly'),
+                hostile: e.classList.contains('hostile') // TODO not sure if its hostile or enemy
+            }));
+    }
+
+    // Definitions
+
+    /**
+     * @typedef PlanetInfo
+     * @property {Element} el
+     * @property {string} name
+     * @property {string} coords
+     * @property {string} planetLink
+     * @property {string} newsLink
+     * @property {number} orbitRemaining
+     * @property {number} groundRemaining
+     * @property {number} soldiers
+     * @property {number} workersIdle
+     * @property {number} workersBusy
+     * @property {number} metalInStock
+     * @property {number} metalProduction
+     * @property {number} metalAbundance
+     * @property {number} mineralInStock
+     * @property {number} mineralProduction
+     * @property {number} mineralAbundance
+     * @property {number} energyInStock
+     * @property {number} energyProduction
+     * @property {number} energyAbundance
+     * @property {PlanetProduction} structure
+     * @property {PlanetProduction} shipYard
+     * @property {PlanetProduction} barracks
+     * @property {string|null} radarLink
+     * @property {FleetInOrbit[]} fleets
+     */
+
+    /**
+     * @typedef PlanetProduction
+     * @property {string} item
+     * @property {number} turns
+     * @property {string} link
+     * @property {number} quantity
+     */
+
+    /**
+     * @typedef FleetInOrbit
+     * @property {string} name
+     * @property {string} link
+     * @property {boolean} friendly
+     * @property {boolean} hostile
+     */
+
+    /**
+     * Convert planet list data into stats.
+     *
+     * @param {PlanetInfo[]} planetList
+     * @return {PlanetListStats}
+     */
+    function getPlanetListStats(planetList) {
+        const workers = sum(planetList, 'workersIdle') + sum(planetList, 'workersBusy');
+        const soldiers = sum(planetList, 'soldiers');
+        return {
+            planetsOwned: planetList.length,
+            coords: planetList.map(p => p.coords),
+            fleets: planetList.reduce(
+                (r, p) => [...r, ...p.fleets.map(f => ({...f, coords: p.coords }))],
+                []
+            ),
+            workers,
+            avgWorkers: workers / planetList.length,
+            soldiers,
+            avgSoldiers: soldiers / planetList.length,
+            groundRemaining: sum(planetList, 'groundRemaining'),
+            orbitRemaining: sum(planetList, 'orbitRemaining'),
+            metal: {
+                inStock: sum(planetList, 'metalInStock'),
+                production: sum(planetList, 'metalProduction'),
+                avgAbundance: avg(planetList, 'metalAbundance'),
+            },
+            mineral: {
+                inStock: sum(planetList, 'mineralInStock'),
+                production: sum(planetList, 'mineralProduction'),
+                avgAbundance: avg(planetList, 'mineralAbundance'),
+            },
+            energy: {
+                inStock: sum(planetList, 'energyInStock'),
+                production: sum(planetList, 'energyProduction'),
+                avgAbundance: avg(planetList, 'energyAbundance'),
+            },
+            producing: planetList.filter(p => p.shipYard.item !== 'None').map(({shipYard, coords}) => ({...shipYard, coords})),
+            training: planetList.filter(p => p.barracks.item !== 'None').map(({barracks, coords}) => ({...barracks, coords})),
+            building: planetList.filter(p => p.structure.item !== 'None').map(({structure, coords}) => ({...structure, coords})),
+        };
+    }
+
+
+    /**
+     * Very rudimentary textarea that outputs Discord-friendly stats.
+     *
+     * @param {window} env
+     * @param {PlanetListStats} stats
+     * @param {HeaderData} headerData
+     * @return {HTMLTextAreaElement}
+     */
+    function renderPlanetListStats(env, stats, {turn}) {
+        const discordOutputEl = env.document.createElement('textarea');
+        discordOutputEl.style.width = '400px';
+        discordOutputEl.style.height = '200px';
+        discordOutputEl.value = [
+            `Turn: ${turn}`,
+            `:coords: Planets Owned: ${stats.planetsOwned}`,
+            '',
+            `:worker: ${numberFormat(stats.workers)} (${numberFormat(stats.avgWorkers)} / planet)`,
+            `:soldier: ${numberFormat(stats.soldiers)} (${numberFormat(stats.avgSoldiers)} / planet)`,
+            '',
+            `:metal~1: ${outputResource(stats.metal)}`,
+            `:mineral: ${outputResource(stats.mineral)}`,
+            `:energy: ${outputResource(stats.energy)}`,
+            '',
+            `:army_barracks: Training:`,
+            ...stats.training.reduce(groupUnitProduction, []).map(outputUnitProduction(turn)),
+            '',
+            `:ship_yard: Producing:`,
+            ...stats.producing.reduce(groupUnitProduction, []).map(outputUnitProduction(turn)),
+        ].join('\n');
+
+        return discordOutputEl;
+    }
+
+    function outputResource({inStock, production, avgAbundance}) {
+        return `${numberFormat(inStock)} (+${numberFormat(production)}) ${numberFormat(avgAbundance, 2)}%`;
+    }
+
+    function groupUnitProduction(r, { turns, item, quantity }) {
+        const find = r.find(i => i.turns === turns && i.item === item);
+        if (find) {
+            find.quantity += quantity;
+            return r;
+        }
+        return [...r, { turns, item, quantity }];
+    }
+
+    function outputUnitProduction(currentTurn) {
+        return ({ quantity, item, turns }) => `+${numberFormat(quantity)}x ${item} done on turn ${currentTurn + turns} (in ${turns} turns)`;
+    }
+
+    // definitions
+
+    /**
+     * @typedef PlanetListStats
+     * @property {number} planetsOwned
+     * @property {string[]} coords
+     * @property {number} workers
+     * @property {number} avgWorkers
+     * @property {number} soldiers
+     * @property {number} avgSoldiers
+     * @property {number} groundRemaining
+     * @property {number} orbitRemaining
+     * @property {ResourceStats} metal
+     * @property {ResourceStats} mineral
+     * @property {ResourceStats} energy
+     * @property {UnitProductionStats} training
+     * @property {UnitProductionStats} building
+     * @property {UnitProductionStats} producing
+     * @property {FleetInOrbitAtCoords[]} fleets
+     */
+
+    /**
+     * @typedef ResourceStats
+     * @property {number} inStock
+     * @property {number} production
+     * @property {number} avgAbundance
+     */
+
+    /**
+     * @typedef UnitProductionStats
+     * @property {string} item
+     * @property {number} turns
+     * @property {number} quantity
+     */
+
+    /**
+     * @typedef {FleetInOrbit} FleetInOrbitAtCoords
+     * @property {string} coords
+     */
+
+    /**
+     * @description Tools for DarkGalaxy game @link <https://www.darkgalaxy.com/>
+     * These tools are intended only for WolfPack members and allies.
      * This script also includes all public tools, so its not advisable to use them both together.
      *
      * @author Ivan (aka Deda)
-     * @version 1.0
+     * @version 1.0.0
      */
     (function(env) {
-        const VERSION = '1.0';
+        const VERSION = '1.0.0';
+        const headerData = parseHeaderData(env);
         const [view, params] = resolveCurrentView(env);
 
         /**
@@ -224,10 +368,18 @@
          * @param options
          */
         function connect(options = {}) {
+            // todo authorize by API key
+
             if (view === VIEW.PLANET_LIST) {
-                processPlanetListStats(env);
+                // TODO this would be inserted into a dedicated toolbar for DG tools
+                const planetList = parsePlanetList();
+                const planetStats = getPlanetListStats(planetList); // TODO per galaxy
+                const discordOutputEl = renderPlanetListStats(env, planetStats, headerData);
+                const outletEl = env.document.createElement('div');
+                outletEl.classList.add('planet-list-stats-outlet');
+                outletEl.append(discordOutputEl);
+                env.document.body.append(outletEl);
             }
-            status();
         }
         
         // endregion

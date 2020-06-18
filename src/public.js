@@ -1,6 +1,8 @@
-import processPlanetListStats from "./tools/planet-list-stats";
 import {resolveCurrentView, VIEW} from "./view";
 import {CORE_VERSION} from "./config";
+import {parseHeaderData} from "./parsers/header-data";
+import {parsePlanetList} from "./parsers/planet-list";
+import {getPlanetListStats, renderPlanetListStats} from "./tools/planet-list-stats";
 
 /**
  * @description Public tools for DarkGalaxy game @link <https://www.darkgalaxy.com/>
@@ -10,6 +12,7 @@ import {CORE_VERSION} from "./config";
  */
 
 (function(env) {
+    const headerData = parseHeaderData(env);
     const [view, params] = resolveCurrentView(env);
 
     /**
@@ -27,9 +30,15 @@ import {CORE_VERSION} from "./config";
      */
     function connect(options = {}) {
         if (view === VIEW.PLANET_LIST) {
-            processPlanetListStats(env);
+            // TODO this would be inserted into a dedicated toolbar for DG tools
+            const planetList = parsePlanetList(env);
+            const planetStats = getPlanetListStats(planetList); // TODO per galaxy
+            const discordOutputEl = renderPlanetListStats(env, planetStats, headerData);
+            const outletEl = env.document.createElement('div');
+            outletEl.classList.add('planet-list-stats-outlet');
+            outletEl.append(discordOutputEl);
+            env.document.body.append(outletEl);
         }
-        status();
     }
 
     // endregion

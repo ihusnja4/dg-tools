@@ -1,10 +1,10 @@
 /**
- * @param env
+ * @param {window} env
  * @returns [VIEW, ViewParams]
  */
 export function resolveCurrentView(env) {
     if (env.location.pathname.match(/\/planets\/?$/)) {
-        return [VIEW.PLANET, {}];
+        return [VIEW.PLANET_LIST, {}];
     }
     return [VIEW.UNMATCHED, {}];
 }
@@ -19,6 +19,6 @@ export const VIEW = {
 };
 
 /**
- * @typedef ViewParams
+ * @typedef {{}} ViewParams
  * @property *
  */
