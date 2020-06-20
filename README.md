@@ -19,8 +19,8 @@
     // @version      0.1
     // @description  DarkGalaxy tools to enhance game UI like: battle calculators, stats, color enhancers, etc...
     // @author       Ivan (aka Deda)
-    // @match        http://beta.darkgalaxy.com/*
-    // @require      https://ihusnja4.github.io/dg-tools/master/public.js
+    // @match        https://beta.darkgalaxy.com/*
+    // @require      https://ihusnja4.github.io/dg-tools/master/dist/public.js
     // @grant        none
     // ==/UserScript==
 
@@ -44,8 +44,8 @@ These tools use API to communicate with database, so anyone without a valid API 
     // @version      0.1
     // @description  Along all the DarkGalaxy tools to enhance game UI like: battle calculators, stats, color enhancers, etc... This also provides features like sharing radar, planet scans, and storing battle and invasion reports.
     // @author       Ivan (aka Deda)
-    // @match        http://beta.darkgalaxy.com/*
-    // @require      https://ihusnja4.github.io/dg-tools/master/protected.js
+    // @match        https://beta.darkgalaxy.com/*
+    // @require      https://ihusnja4.github.io/dg-tools/master/dist/protected.js
     // @grant        none
     // ==/UserScript==
 
